@@ -68,17 +68,18 @@ def train(model,trainloader,validloader,optimizer,criterion,epochs=50,device="cp
             loss = criterion(logps,labels)
             valid_loss += loss.item()
         valid_losses.append(valid_loss/len(validloader))
+        
+        print(f"epoch: {e+1}/{epochs} trainloss: {train_loss/len(trainloader):.5f} validloss: {valid_loss/len(validloader):.5f} time: {time.time() - start:.3f} sec")
 
-    print(f"epoch: {e+1}/{epochs} trainloss:{train_loss/len(trainloader):.5f}\
-    validloss:{valid_loss/len(validloader):.5f} time:{time.time() - start:.3f}sec")
-
-    ## saving model parameters
-    if(valid_loss < last_loss):
-        print(f"Loss decresed:{last_loss/len(validloader):.5f} -> {valid_loss/len(validloader):.5f}")
-        torch.save(model.state_dict(),"model_weights.pth")
-        last_loss = valid_loss
-
+      ## saving model parameters
+        if(valid_loss < last_loss):
+            print(f"Loss decresed: {last_loss/len(validloader):.5f} -> {valid_loss/len(validloader):.5f}")
+            torch.save(model.state_dict(),"model_weights.pth")
+            last_loss = valid_loss
     return (train_losses,valid_losses)
+
+
+
 
 def test(model,testloader,optimizer,criterion,device="cpu"):
     """
@@ -93,25 +94,20 @@ def test(model,testloader,optimizer,criterion,device="cpu"):
             logps = model(features)
             loss = criterion(logps,labels)
             ps = torch.exp(logps)
-            top_class,_ = ps.topk(1,dim=1)
+            top_p,top_class = ps.topk(1,dim=1)
             equals = top_class == labels.view(*top_class.shape)
-            accuracy += torch.mean(equals.to(torch.FloatTensor)).item()
+            accuracy += torch.mean(equals.type(torch.FloatTensor)).item()
             test_loss += loss.item()
 
-    print(f"testloss:{test_loss/len(testloader):.6f} accuracy:{accuracy/len(accuracy)}")
+    print(f"testloss: {test_loss/len(testloader):.6f} accuracy: {accuracy/len(testloader):.3f}")
 
 
-def predict(img,labels,classes,model,device="cpu"):
+def predict(img,classes,labels,model,device="cpu"):
     """
         function to predict label of input image
     """
     img = img.to(device)
     output = model(img)
     _,preds = torch.max(output,dim=1)
-    plot_batch(img,classes,labels,preds,True)
-    return preds
-
-
-    
-    
-
+    img = img.to("cpu")
+    plot_batch(img,classes,labels,preds,normalize=True)
